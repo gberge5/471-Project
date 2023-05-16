@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Boid Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+    <script>
+        // Global variables
+        let scene, camera, renderer;
+        let boids = [];
+        const numBoids = 80;
+        const bounds = 1000;
+        const visualRange = 600;
+
+        // Initialize the scene
+        function initScene() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 800;
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  createBoids();
+
+  // Resize renderer when window size changes
+  window.addEventListener('resize', onWindowResize);
+}
+
+// Handle window resize event
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+        // Create boid objects
+        function createBoids() {
+            const geometry = new THREE.TetrahedronBufferGeometry(8);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+            for (let i = 0; i < numBoids; i++) {
+                const boid = new THREE.Mesh(geometry, material);
+                boid.position.x = Math.random() * bounds - bounds / 2;
+                boid.position.y = Math.random() * bounds - bounds / 2;
+                boid.position.z = Math.random() * bounds - bounds / 2;
+
+                const velocity = new THREE.Vector3();
+                velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+                boid.userData = { velocity };
+
+                boids.push(boid);
+                scene.add(boid);
+            }
+        }
+
+        // Update the boid positions
+        function updateBoids() {
+            for (let i = 0; i < numBoids; i++) {
+const boid = boids[i];
+flyTowardsCenter(boid);
+            avoidOthers(boid);
+            matchVelocity(boid);
+            limitSpeed(boid);
+
+            // Update the position based on velocity
+            boid.position.add(boid.userData.velocity);
+
+            keepWithinBounds(boid);
+            // Wrap around the screen edges
+            if (boid.position.x < -bounds / 2) boid.position.x = bounds / 2;
+            if (boid.position.x > bounds / 2) boid.position.x = -bounds / 2;
+            if (boid.position.y < -bounds / 2) boid.position.y = bounds / 2;
+            if (boid.position.y > bounds / 2) boid.position.y = -bounds / 2;
+            if (boid.position.z < -bounds / 2) boid.position.z = bounds / 2;
+            if (boid.position.z > bounds / 2) boid.position.z = -bounds / 2;
+        }
+    }
+
+    // Render loop
+    function animate() {
+        requestAnimationFrame(animate);
+        updateBoids();
+        renderer.render(scene, camera);
+    }
+
+    // Initialize the scene and start the animation
+    initScene();
+    animate();
+
+    // Additional functions
+    function flyTowardsCenter(boid) {
+        const centeringFactor = 0.005; // adjust velocity by this %
+
+        let centerX = 0;
+        let centerY = 0;
+        let centerZ = 0;
+        let numNeighbors = 0;
+
+        for (let otherBoid of boids) {
+            if (distance(boid, otherBoid) < visualRange) {
+                centerX += otherBoid.position.x;
+                centerY += otherBoid.position.y;
+                centerZ += otherBoid.position.z;
+                numNeighbors += 1;
+            }
+        }
+
+        if (numNeighbors) {
+            centerX = centerX / numNeighbors;
+            centerY = centerY / numNeighbors;
+            centerZ = centerZ / numNeighbors;
+
+            boid.userData.velocity.x += (centerX - boid.position.x) * centeringFactor;
+            boid.userData.velocity.y += (centerY - boid.position.y) * centeringFactor;
+            boid.userData.velocity.z += (centerZ - boid.position.z) * centeringFactor;
+        }
+    }
+    function distance(boidA, boidB) {
+  const dx = boidA.position.x - boidB.position.x;
+  const dy = boidA.position.y - boidB.position.y;
+  const dz = boidA.position.z - boidB.position.z;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function keepWithinBounds(boid) {
+  const margin = 200;
+  const turnFactor = 1;
+
+  if (boid.position.x < -bounds / 2 + margin) {
+    boid.userData.velocity.x += turnFactor;
+  }
+  if (boid.position.x > bounds / 2 - margin) {
+    boid.userData.velocity.x -= turnFactor;
+  }
+  if (boid.position.y < -bounds / 2 + margin) {
+    boid.userData.velocity.y += turnFactor;
+  }
+  if (boid.position.y > bounds / 2 - margin) {
+    boid.userData.velocity.y -= turnFactor;
+  }
+  if (boid.position.z < -bounds / 2 + margin) {
+    boid.userData.velocity.z += turnFactor;
+  }
+  if (boid.position.z > bounds / 2 - margin) {
+    boid.userData.velocity.z -= turnFactor;
+  }
+}
+    function avoidOthers(boid) {
+        const minDistance = 20; // The distance to stay away from other boids
+        const avoidFactor = 0.05; // Adjust velocity by this %
+        let moveX = 0;
+        let moveY = 0;
+        let moveZ = 0;
+
+        for (let otherBoid of boids) {
+            if (otherBoid !== boid) {
+                if (distance(boid, otherBoid) < minDistance) {
+                    moveX += boid.position.x - otherBoid.position.x;
+                    moveY += boid.position.y - otherBoid.position.y;
+                    moveZ += boid.position.z - otherBoid.position.z;
+                }
+            }
+        }
+
+        boid.userData.velocity.x += moveX * avoidFactor;
+        boid.userData.velocity.y += moveY * avoidFactor;
+        boid.userData.velocity.z += moveZ * avoidFactor;
+    }
+
+    function matchVelocity(boid) {
+        const matchingFactor = 0.05; // Adjust by this % of average velocity
+
+        let avgDX = 0;
+        let avgDY = 0;
+        let avgDZ = 0;
+        let numNeighbors = 0;
+
+        for (let otherBoid of boids) {
+            if (distance(boid, otherBoid) < visualRange) {
+                avgDX += otherBoid.userData.velocity.x;
+                avgDY += otherBoid.userData.velocity.y;
+                avgDZ += otherBoid.userData.velocity.z;
+                numNeighbors += 1;
+            }
+        }
+
+        if (numNeighbors) {
+            avgDX = avgDX / numNeighbors;
+            avgDY = avgDY / numNeighbors;
+            avgDZ = avgDZ / numNeighbors;
+              boid.userData.velocity.x += (avgDX - boid.userData.velocity.x) *matchingFactor;
+boid.userData.velocity.y += (avgDY - boid.userData.velocity.y) * matchingFactor;
+boid.userData.velocity.z += (avgDZ - boid.userData.velocity.z) * matchingFactor;
+}
+}
+function limitSpeed(boid) {
+        const speedLimit = 15;
+
+        const speed = Math.sqrt(boid.userData.velocity.x * boid.userData.velocity.x + boid.userData.velocity.y * boid.userData.velocity.y +boid.userData.velocity.z * boid.userData.velocity.z);
+        if (speed > speedLimit) {
+            boid.userData.velocity.x = (boid.userData.velocity.x / speed) * speedLimit;
+            boid.userData.velocity.y = (boid.userData.velocity.y / speed) * speedLimit;
+            boid.userData.velocity.z = (boid.userData.velocity.z / speed) * speedLimit;
+        }
+    }
+
+    function distance(boidA, boidB) {
+        const dx = boidA.position.x - boidB.position.x;
+        const dy = boidA.position.y - boidB.position.y;
+        const dz = boidA.position.z - boidB.position.z;
+        return Math.sqrt(dx * dx + dy * dy+dz * dz);
+    }
+</script>
+</body>
+</html>
