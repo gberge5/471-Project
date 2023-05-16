@@ -55,6 +55,7 @@
                 boid.position.x = Math.random() * bounds - bounds / 2;
                 boid.position.y = Math.random() * bounds - bounds / 2;
                 boid.position.z = Math.random() * bounds - bounds / 2;
+                boid.particleEmit = new particleSystem("path", imageSize); //path = img filepath, imageSize = size in pixels
 
                 const velocity = new THREE.Vector3();
                 velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
@@ -226,6 +227,66 @@
             const dz = boidA.position.z - boidB.position.z;
             return Math.sqrt(dx * dx + dy * dy+dz * dz);
         }
+
+        class particleSystem{
+        image;
+        imageSize;
+        emissionRate = 10;
+        scale = 1;
+        startScale = 1.0;
+        endScale = 4.0;
+        lifespan = 1.0;
+        speed = 1.0;
+
+        frameRule = 10; //frames per particle emission
+        frameCounter = 0;
+
+        particles = [];
+
+        particleSystem(path, imageSize){
+            this.image = path;
+            this.imageSize = imageSize;
+        }
+
+        systemUpdate(){
+            emissionCheck();
+            particleUpdate();
+        }
+
+        emissionCheck(){
+            if(this.frameCounter % this.frameRule == 0){
+            this.emitParticle();
+            }
+            this.frameCounter++;
+        }
+
+        particleUpdate(){
+            for(particle in particles){
+                if(currentLifespan <= 0){
+                    //delete particle
+                }
+                particle.lifeRatio = (lifespan/maxLifespan);
+                particle.speed *= lifeRatio; 
+                particle.velocity.x *= speed;
+                particle.velocity.y *= speed;
+                particle.position.x += velocity.x;
+                particle.position.y += velocity.y;
+            }  
+        }
+
+        emitParticle(){
+            particle = new particle;
+            particle.position.x = super.position.x;
+            particle.position.y = super.position.y;
+            particle.velocity.x = Math.random();
+            particle.velocity.y = Math.random();
+            particle.maxLifespan = lifespan;
+            particle.currentLifespan = lifespan;
+            particle.lifeRatio;
+            particles.push(particle);
+        }  
+        }
+        
     </script>
 </body>
 </html>
